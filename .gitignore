@@ -1,0 +1,12 @@
+# Python
+ml_service/venv/
+ml_service/__pycache__/
+ml_service/saved_model/
+ml_service/dataset/
+
+# Node
+node_modules/
+
+# Misc
+uploads/
+*.zip
