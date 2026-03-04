@@ -65,6 +65,12 @@ def overlay(image_path, heatmap):
     output = cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
     return output
 
+@app.route("/")
+def home():
+    return "Brain Tumor API is running 🚀"
+
+
+
 @app.route("/analyze", methods=["POST"])
 def analyze():
     if "image" not in request.files:

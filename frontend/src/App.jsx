@@ -30,41 +30,35 @@ function App() {
     setHeatmapUrl(null);
   };
 
-  const handleAnalyze = async () => {
-    if (!image) return;
-    setLoading(true);
-    setError(null);
+ const handleAnalyze = async () => {
+  if (!image) return;
+  setLoading(true);
+  setError(null);
 
-    const formData = new FormData();
-    formData.append("image", image);
+  const formData = new FormData();
+  formData.append("image", image);
 
-    try {
-      const res = await fetch(`${API_BASE}/analyze`, {
-        method: "POST",
-        body: formData,
-      });
+  try {
+    const res = await fetch(`${API_BASE}/analyze`, {
+      method: "POST",
+      body: formData,
+    });
 
-      if (!res.ok) throw new Error("Backend connection failed");
+    if (!res.ok) throw new Error("Backend connection failed");
 
-      const json = await res.json();
-      
-      if (json.image) {
-        setPrediction(json.prediction);
-        setConfidence(json.confidence);
-        
-        // Encode the filename to handle spaces/special characters safely
-        const safeFile = encodeURIComponent(json.image);
-        const url = `${API_BASE}/files/${safeFile}?t=${new Date().getTime()}`;
-        
-        console.log("Loading heatmap from:", url);
-        setHeatmapUrl(url);
-      }
-    } catch (err) {
-      setError("Failed to reach the server. Is Python running on 5001?");
-    } finally {
-      setLoading(false);
-    }
-  };
+    const json = await res.json();
+
+    setPrediction(json.prediction);
+    setConfidence(json.confidence);
+    setHeatmapUrl(json.image_url + `?t=${new Date().getTime()}`);
+
+  } catch (err) {
+    setError("Failed to reach the server. Is Python running on 5001?");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
