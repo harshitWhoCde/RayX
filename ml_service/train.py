@@ -23,6 +23,8 @@ train_data = datagen.flow_from_directory(
     class_mode='categorical',
     subset='training'
 )
+print("Training Class Indices:")
+print(train_data.class_indices)
 
 val_data = datagen.flow_from_directory(
     DATASET_DIR,

@@ -5,3 +5,5 @@ opencv-python
 matplotlib
 seaborn
 scikit-learn
+flask 
+flask-cors

@@ -18,7 +18,7 @@ os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 # CONFIG
 # --------------------
 IMG_SIZE = 224
-CLASS_NAMES = ['glioma', 'meningioma', 'notumor', 'pituitary']
+CLASS_NAMES = ['glioma', 'meningioma','pituitary', 'notumor']
 UPLOADS = "uploads"
 os.makedirs(UPLOADS, exist_ok=True)
 
@@ -58,12 +58,39 @@ def overlay(image_path, heatmap):
     img = cv2.imread(image_path)
     img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
     
-    heatmap = cv2.resize(heatmap, (IMG_SIZE, IMG_SIZE))
-    heatmap = np.uint8(255 * heatmap)
-    heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    heatmap_resized = cv2.resize(heatmap, (IMG_SIZE, IMG_SIZE))
     
-    output = cv2.addWeighted(img, 0.6, heatmap, 0.4, 0)
+    # --- STRIPPING MASK ---
+    # Create an elliptical mask that ignores the forehead and skull outline.
+    h, w = heatmap_resized.shape
+    brain_mask = np.zeros((h, w), dtype=np.float32)
+    center = (w // 2, h // 2)
+    axes = (int(w * 0.38), int(h * 0.45)) 
+    cv2.ellipse(brain_mask, center, axes, 0, 0, 360, 1.0, -1)
+    
+    heatmap_resized = heatmap_resized * brain_mask
+    
+    if np.max(heatmap_resized) > 0:
+        heatmap_resized = heatmap_resized / np.max(heatmap_resized)
+        
+    # --- STANDARD HEATMAP COLORING ---
+    # Convert 0-1 scale to 0-255 uint8 range for standard OpenCV heatmap
+    heatmap_uint8 = np.uint8(255 * heatmap_resized)
+    
+    # Apply JET colormap (industry standard for Grad-CAM)
+    heatmap_color = cv2.applyColorMap(heatmap_uint8, cv2.COLORMAP_JET)
+    
+    # Ignore very low activation zones
+    heatmap_color[heatmap_resized < 0.2] = 0
+    
+    # Blend the heatmap on top of the original MRI scan 
+    output = cv2.addWeighted(img, 0.6, heatmap_color, 0.4, 0)
+    
     return output
+
+@app.route("/")
+def home():
+    return "Brain Tumor API is running 🚀"
 
 @app.route("/analyze", methods=["POST"])
 def analyze():
@@ -79,7 +106,7 @@ def analyze():
         input_tensor = preprocess(path)
         preds = model.predict(input_tensor)
         idx = int(np.argmax(preds))
-        confidence = float(preds[0][idx])
+        confidence = float(preds[0][idx]) * 100
 
         # 2. Generate Heatmap
         heatmap = generate_heatmap(input_tensor, model, last_conv_layer_name)
@@ -91,13 +118,13 @@ def analyze():
 
         return jsonify({
             "prediction": CLASS_NAMES[idx],
-            "confidence": round(confidence, 4),
+            "confidence": round(confidence, 2),
             "image_url": f"http://localhost:5001/files/{out_name}"
         })
 
     except Exception as e:
         print("❌ ERROR DURING REQUEST:")
-        traceback.print_exc() # This prints the error to your terminal
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
     
     finally:
