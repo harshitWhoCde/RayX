@@ -1,8 +1,16 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Brain, Scan, Shield, Zap, Upload, X, AlertCircle } from "lucide-react";
+import { Brain, Scan, Upload, X, AlertCircle, Info, Activity } from "lucide-react";
 
 const API_BASE = "http://localhost:5001";
+
+// Medical intelligence dictionary
+const TUMOR_INFO = {
+  glioma: "Gliomas are tumors that occur in the brain and spinal cord, beginning in the supportive glial cells. They display variable growth rates and are monitored closely as they can affect neurological function over time.",
+  meningioma: "A meningioma is a tumor that arises from the meninges — the membranes surrounding your brain and spinal cord. Most are slow-growing and benign, but require medical attention if pressing on critical neural pathways.",
+  pituitary: "Pituitary tumors are abnormal growths developing in the pituitary gland. They are overwhelmingly noncancerous, but their presence can trigger significant changes in hormone regulation.",
+  notumor: "No abnormal tumor mass detected in this MRI analysis. Note: This AI screening is a preliminary tool and cannot replace a comprehensive clinical evaluation. Regular check-ups are always encouraged."
+};
 
 function App() {
   const [image, setImage] = useState(null);
@@ -30,104 +38,173 @@ function App() {
     setHeatmapUrl(null);
   };
 
- const handleAnalyze = async () => {
-  if (!image) return;
-  setLoading(true);
-  setError(null);
+  const handleAnalyze = async () => {
+    if (!image) return;
+    setLoading(true);
+    setError(null);
 
-  const formData = new FormData();
-  formData.append("image", image);
+    const formData = new FormData();
+    formData.append("image", image);
 
-  try {
-    const res = await fetch(`${API_BASE}/analyze`, {
-      method: "POST",
-      body: formData,
-    });
+    try {
+      const res = await fetch(`${API_BASE}/analyze`, {
+        method: "POST",
+        body: formData,
+      });
 
-    if (!res.ok) throw new Error("Backend connection failed");
+      if (!res.ok) throw new Error("Backend connection failed");
 
-    const json = await res.json();
+      const json = await res.json();
+      setPrediction(json.prediction);
+      setConfidence(json.confidence);
+      setHeatmapUrl(json.image_url + `?t=${new Date().getTime()}`);
 
-    setPrediction(json.prediction);
-    setConfidence(json.confidence);
-    setHeatmapUrl(json.image_url + `?t=${new Date().getTime()}`);
-
-  } catch (err) {
-    setError("Failed to reach the server. Is Python running on 5001?");
-  } finally {
-    setLoading(false);
-  }
-};
-
+    } catch (err) {
+      setError("Failed to reach the deep learning server. Ensure Python API is running on port 5001.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
-        <header className="text-center">
-          <h1 className="text-4xl font-bold text-cyan-400">Brain Tumor Detection</h1>
-          <p className="text-slate-400">AI Deep Learning Analysis</p>
+    <div className="min-h-screen p-6 md:p-12 overflow-x-hidden bg-slate-50 text-slate-900 font-sans">
+      <div className="max-w-6xl mx-auto space-y-12">
+        {/* Header section */}
+        <header className="text-center pt-8">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.5 }}>
+            <div className="inline-flex items-center justify-center p-3 bg-white border border-slate-200 rounded-2xl mb-6 shadow-sm">
+              <Scan className="w-8 h-8 text-blue-600" />
+            </div>
+          </motion.div>
+          <motion.h1 
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 pb-2"
+          >
+            RayX
+          </motion.h1>
+          <motion.p 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+            className="text-slate-500 mt-4 text-lg font-medium tracking-wide max-w-xl mx-auto"
+          >
+            Clinical-grade computational analysis of MRI scans using modern Deep Learning.
+          </motion.p>
         </header>
 
-        <div className="grid lg:grid-cols-2 gap-8">
-          {/* Upload Card */}
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800">
-            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2"><Scan className="text-cyan-400"/> MRI Input</h2>
-            {!preview ? (
-              <label className="h-64 border-2 border-dashed border-slate-700 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500/50 transition-colors">
-                <Upload className="w-10 h-10 text-slate-600 mb-2" />
-                <span className="text-slate-400">Click to upload MRI</span>
-                <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" />
-              </label>
-            ) : (
-              <div className="relative aspect-video bg-black rounded-xl overflow-hidden">
-                <img src={preview} className="w-full h-full object-contain" alt="Input Preview" />
-                <button onClick={handleClear} className="absolute top-2 right-2 p-1.5 bg-red-500/20 text-red-400 rounded-full hover:bg-red-500 hover:text-white transition-all">
-                  <X className="w-4 h-4" />
-                </button>
+        <div className="grid lg:grid-cols-12 gap-8 items-start">
+          
+          {/* Input Panel */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="lg:col-span-5 w-full">
+            <div className="bg-white p-8 rounded-[2rem] relative overflow-hidden shadow-md border border-slate-200">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-slate-800 flex items-center gap-3">
+                  <Activity className="text-blue-500 w-5 h-5"/> Input Source
+                </h2>
               </div>
-            )}
-            <button 
-              onClick={handleAnalyze} 
-              disabled={!image || loading}
-              className="w-full mt-4 py-4 bg-cyan-600 hover:bg-cyan-500 disabled:bg-slate-800 rounded-xl font-bold transition-all"
-            >
-              {loading ? "Analyzing..." : "RUN ANALYSIS"}
-            </button>
-          </div>
 
-          {/* Results Card */}
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 min-h-[400px]">
-            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2"><Brain className="text-cyan-400"/> Results</h2>
-            {prediction ? (
-              <div className="space-y-6">
-                <div className="flex justify-between items-end border-b border-slate-800 pb-4">
-                  <div>
-                    <p className="text-xs text-slate-500 uppercase">Diagnosis</p>
-                    <p className="text-2xl font-bold capitalize">{prediction}</p>
+              {!preview ? (
+                <label className="h-72 border-2 border-dashed border-slate-300 bg-slate-50/50 rounded-3xl flex flex-col items-center justify-center cursor-pointer hover:border-blue-400 hover:bg-blue-50/50 transition-all duration-300 overflow-hidden relative group">
+                  <div className="p-4 bg-white shadow-sm border border-slate-100 rounded-full mb-4 transform group-hover:-translate-y-2 group-hover:scale-105 transition-all duration-300">
+                    <Upload className="w-8 h-8 text-blue-500" />
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500 uppercase">Confidence</p>
-                    <p className="text-2xl font-mono text-cyan-400 font-bold">{confidence}%</p>
-                  </div>
+                  <span className="text-slate-700 font-medium pb-1">Upload DICOM or Image File</span>
+                  <span className="text-slate-400 text-xs text-center px-4">Supported formats: PNG, JPG, JPEG (Max 10MB)</span>
+                  <input type="file" className="hidden" onChange={handleFileSelect} accept="image/*" />
+                </label>
+              ) : (
+                <div className="relative aspect-square md:aspect-[4/3] bg-slate-100 rounded-3xl overflow-hidden shadow-sm border border-slate-200 group">
+                  <img src={preview} className="w-full h-full object-cover" alt="Input Preview" />
+                  <button onClick={handleClear} className="absolute top-4 right-4 p-2 bg-white/90 text-red-500 backdrop-blur-md rounded-full hover:bg-red-50 transition-all shadow-sm z-10">
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
+              )}
 
-                {heatmapUrl && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">Activation Map (Grad-CAM)</p>
-                    <div className="aspect-video rounded-xl overflow-hidden bg-black border border-cyan-500/20">
-                      <img src={heatmapUrl} className="w-full h-full object-contain" alt="Heatmap Result" />
+              <button 
+                onClick={handleAnalyze} 
+                disabled={!image || loading}
+                className="w-full mt-6 py-4 relative overflow-hidden bg-blue-600 text-white rounded-2xl font-semibold tracking-wide transition-all duration-300 shadow hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 disabled:hover:shadow-none"
+              >
+                <div className="relative z-10 flex justify-center items-center gap-2">
+                  {loading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
+                      Processing Diagnostics...
+                    </>
+                  ) : "Initiate Analysis"}
+                </div>
+              </button>
+            </div>
+          </motion.div>
+
+          {/* Results Panel */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="lg:col-span-7 w-full h-full">
+            <div className="bg-white p-8 rounded-[2rem] h-full flex flex-col relative overflow-hidden border border-slate-200 shadow-md">
+              <h2 className="text-xl font-semibold mb-6 flex items-center gap-3 text-slate-800">
+                <Brain className="text-blue-500 w-5 h-5"/> Diagnostics Output
+              </h2>
+              
+              {prediction ? (
+                <AnimatePresence>
+                  <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className="flex-1 flex flex-col space-y-6">
+                    
+                    {/* The Results Banner */}
+                    <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-end p-6 rounded-2xl bg-blue-50 border border-blue-100 shadow-sm">
+                      <div>
+                        <p className="text-xs text-blue-600/70 uppercase tracking-widest font-bold mb-1">Detected Signature</p>
+                        <p className="text-3xl md:text-4xl font-extrabold capitalize text-blue-900">
+                          {prediction === "notumor" ? "Negative" : prediction}
+                        </p>
+                      </div>
+                      <div className="text-left md:text-right">
+                        <p className="text-xs text-blue-600/70 uppercase tracking-widest font-bold mb-1">Model Confidence</p>
+                        <p className="text-3xl md:text-4xl font-mono text-blue-600 font-bold whitespace-nowrap">
+                          {confidence}%
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="h-64 flex flex-col items-center justify-center opacity-40">
-                <Brain className="w-16 h-16 mb-4" />
-                <p>Waiting for MRI scan...</p>
-              </div>
-            )}
-            {error && <p className="text-red-400 mt-4 text-sm bg-red-500/10 p-3 rounded-lg border border-red-500/20">{error}</p>}
-          </div>
+
+                    {/* Biological context paragraph */}
+                    <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-slate-600 text-sm leading-relaxed flex gap-4">
+                      <div className="flex-shrink-0 mt-1">
+                        <Info className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-semibold text-slate-800 mb-1">Clinical Context</p>
+                        <p>{TUMOR_INFO[prediction] || "No biological information available."}</p>
+                      </div>
+                    </div>
+
+                    {/* The Heatmap Display */}
+                    {heatmapUrl && (
+                      <div className="flex-1 flex flex-col mt-4">
+                        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest mb-3 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          Grad-CAM Heatmap Analysis
+                        </p>
+                        <div className="relative flex-1 rounded-2xl overflow-hidden bg-slate-100 p-1 shadow-sm border border-slate-200">
+                          <img src={heatmapUrl} className="w-full h-full object-cover rounded-xl" alt="Heatmap Result" />
+                        </div>
+                      </div>
+                    )}
+                  </motion.div>
+                </AnimatePresence>
+              ) : (
+                <div className="flex-1 flex flex-col items-center justify-center opacity-40 min-h-[300px]">
+                  <Brain className="w-24 h-24 mb-6 text-slate-400 stroke-[1]" />
+                  <p className="tracking-widest uppercase text-sm font-semibold text-slate-500">Awaiting visual input</p>
+                </div>
+              )}
+              
+              {/* Error state */}
+              {error && (
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 text-red-700 text-sm bg-red-50 p-4 rounded-xl border border-red-200 flex gap-3 shadow-sm">
+                  <AlertCircle className="w-5 h-5 flex-shrink-0" />
+                  <p>{error}</p>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+
         </div>
       </div>
     </div>
